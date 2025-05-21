@@ -10,6 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from pymongo import MongoClient
+from bson.json_util import dumps, loads
+import json
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -19,8 +22,13 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
-# In-memory activity database
-activities = {
+# Configuração do MongoDB
+client = MongoClient('mongodb://localhost:27017/')
+db = client['mergington_high_school']
+activities_collection = db['activities']
+
+# Dados iniciais das atividades
+initial_activities = {
     "Clube de Xadrez": {
         "description": "Aprenda estratégias e participe de torneios de xadrez",
         "schedule": "Sextas, 15h30 - 17h",
@@ -80,6 +88,41 @@ activities = {
     }
 }
 
+# Função para inicializar o banco de dados com as atividades
+def initialize_db():
+    # Limpa a coleção existente
+    activities_collection.delete_many({})
+    
+    # Insere cada atividade como um documento separado
+    for name, details in initial_activities.items():
+        activity_doc = details.copy()
+        activity_doc["name"] = name  # Adicionando o nome como um campo
+        activities_collection.insert_one(activity_doc)
+    
+    print("Banco de dados inicializado com as atividades")
+
+# Inicializa o banco de dados na inicialização do aplicativo
+#initialize_db()
+
+
+@app.on_event("startup")
+async def startup_db_client():
+    """Evento que é executado na inicialização da aplicação"""
+    try:
+        # Verificar se a conexão com o MongoDB está funcionando
+        client.admin.command('ping')
+        print("Conexão com o MongoDB estabelecida com sucesso!")
+    except Exception as e:
+        print(f"Erro ao conectar ao MongoDB: {e}")
+        print("Certifique-se de que o servidor MongoDB está em execução")
+
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    """Evento que é executado no desligamento da aplicação"""
+    client.close()
+    print("Conexão com o MongoDB fechada")
+
 
 @app.get("/")
 def root():
@@ -88,35 +131,57 @@ def root():
 
 @app.get("/activities")
 def get_activities():
-    return activities
+    """Obter todas as atividades do banco de dados"""
+    cursor = activities_collection.find({})
+    activities_list = list(cursor)
+    
+    # Convertemos para um formato similar ao dicionário original
+    result = {}
+    for activity in activities_list:
+        name = activity.pop("name")  # Removemos o nome do objeto e usamos como chave
+        activity.pop("_id", None)    # Removemos o ID do MongoDB
+        result[name] = activity
+    
+    return result
 
 
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str):
     """Sign up a student for an activity"""
     # Validate activity exists
-    if activity_name not in activities:
+    activity = activities_collection.find_one({"name": activity_name})
+    if not activity:
         raise HTTPException(status_code=404, detail="Atividade não encontrada")
-
-    # Get the specificy activity
-    activity = activities[activity_name]
 
     # Validar se o estudante já está inscrito
     if email in activity["participants"]:
         raise HTTPException(status_code=400, detail="Estudante já inscrito nesta atividade")
     
-    # Add student
-    activity["participants"].append(email)
+    # Add student to the activity in the database
+    activities_collection.update_one(
+        {"name": activity_name},
+        {"$push": {"participants": email}}
+    )
+    
     return {"message": f"{email} inscrito(a) em {activity_name} com sucesso"}
 
 
 @app.post("/activities/{activity_name}/remove")
 def remove_participant(activity_name: str, email: str):
     """Remove um participante de uma atividade"""
-    if activity_name not in activities:
+    # Validate activity exists
+    activity = activities_collection.find_one({"name": activity_name})
+    if not activity:
         raise HTTPException(status_code=404, detail="Atividade não encontrada")
-    activity = activities[activity_name]
+    
+    # Validate participant exists in the activity
     if email not in activity["participants"]:
         raise HTTPException(status_code=404, detail="Participante não encontrado nesta atividade")
-    activity["participants"].remove(email)
+    
+    # Remove participant from the activity
+    activities_collection.update_one(
+        {"name": activity_name},
+        {"$pull": {"participants": email}}
+    )
+    
     return {"message": f"{email} removido(a) de {activity_name} com sucesso"}
