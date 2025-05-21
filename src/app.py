@@ -21,23 +21,62 @@ app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
 
 # In-memory activity database
 activities = {
-    "Chess Club": {
-        "description": "Learn strategies and compete in chess tournaments",
-        "schedule": "Fridays, 3:30 PM - 5:00 PM",
+    "Clube de Xadrez": {
+        "description": "Aprenda estratégias e participe de torneios de xadrez",
+        "schedule": "Sextas, 15h30 - 17h",
         "max_participants": 12,
         "participants": ["michael@mergington.edu", "daniel@mergington.edu"]
     },
-    "Programming Class": {
-        "description": "Learn programming fundamentals and build software projects",
-        "schedule": "Tuesdays and Thursdays, 3:30 PM - 4:30 PM",
+    "Aula de Programação": {
+        "description": "Aprenda fundamentos de programação e desenvolva projetos de software",
+        "schedule": "Terças e quintas, 15h30 - 16h30",
         "max_participants": 20,
         "participants": ["emma@mergington.edu", "sophia@mergington.edu"]
     },
-    "Gym Class": {
-        "description": "Physical education and sports activities",
-        "schedule": "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
+    "Educação Física": {
+        "description": "Educação física e atividades esportivas",
+        "schedule": "Segundas, quartas e sextas, 14h - 15h",
         "max_participants": 30,
         "participants": ["john@mergington.edu", "olivia@mergington.edu"]
+    },
+    # Esportivas
+    "Futebol": {
+        "description": "Participe do time de futebol da escola e jogue campeonatos",
+        "schedule": "Terças e quintas, 16h - 17h30",
+        "max_participants": 22,
+        "participants": ["lucas@mergington.edu", "marcos@mergington.edu"]
+    },
+    "Vôlei": {
+        "description": "Aulas e treinos de vôlei para todos os níveis",
+        "schedule": "Quartas e sextas, 15h - 16h30",
+        "max_participants": 18,
+        "participants": ["ana@mergington.edu", "carla@mergington.edu"]
+    },
+    # Artísticas
+    "Teatro": {
+        "description": "Oficina de teatro com apresentações semestrais",
+        "schedule": "Segundas e quartas, 16h - 17h30",
+        "max_participants": 15,
+        "participants": ["bruno@mergington.edu", "lara@mergington.edu"]
+    },
+    "Clube de Música": {
+        "description": "Aprenda instrumentos e participe da banda escolar",
+        "schedule": "Sextas, 14h - 15h30",
+        "max_participants": 12,
+        "participants": ["rafael@mergington.edu", "juliana@mergington.edu"]
+    },
+    # Intelectuais
+    "Olimpíada de Matemática": {
+        "description": "Prepare-se para olimpíadas de matemática com aulas e desafios",
+        "schedule": "Terças, 17h - 18h",
+        "max_participants": 25,
+        "participants": ["paulo@mergington.edu", "camila@mergington.edu"]
+    },
+    "Clube de Leitura": {
+        "description": "Leitura e discussão de livros clássicos e contemporâneos",
+        "schedule": "Quintas, 16h - 17h",
+        "max_participants": 20,
+        "participants": ["aline@mergington.edu", "fernando@mergington.edu"]
     }
 }
 
@@ -62,6 +101,10 @@ def signup_for_activity(activity_name: str, email: str):
     # Get the specificy activity
     activity = activities[activity_name]
 
+    # Validar se o estudante já está inscrito
+    if email in activity["participants"]:
+        raise HTTPException(status_code=400, detail="Already signed up")
+    
     # Add student
     activity["participants"].append(email)
     return {"message": f"Signed up {email} for {activity_name}"}
