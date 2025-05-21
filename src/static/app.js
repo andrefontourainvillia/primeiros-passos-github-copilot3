@@ -20,25 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        // Cria a lista de participantes
-        let participantsSection = "";
-        if (details.participants.length > 0) {
-          participantsSection = `
-            <div class="participants-section">
-              <strong>Participantes:</strong>
-              <ul class="participants-list">
-                ${details.participants.map(p => `<li>${p}</li>`).join("")}
-              </ul>
-            </div>
-          `;
-        } else {
-          participantsSection = `
-            <div class="participants-section">
-              <strong>Participantes:</strong>
-              <p class="no-participants">Nenhum participante inscrito ainda.</p>
-            </div>
-          `;
-        }
+        // Generate the participants section
+        const participantsSection = generateParticipantsSection(details.participants);
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
